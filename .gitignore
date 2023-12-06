@@ -1,0 +1,20 @@
+# Python virtual environment
+venv/
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+env/
+*.pot
+*.egg-info/
+dist/
+build/
+*.csv
+pyvenv.cfg
+bin/
+include/
+lib/
+Scripts/
+lib64
+share/

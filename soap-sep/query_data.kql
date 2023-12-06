@@ -1,0 +1,38 @@
+let time_begin = datetime(2023-08-14 16:00:00);
+let time_end = datetime(2023-10-14 16:00:00);
+
+let customEvents = union app("saas-xhis-appinsight-cc-prod-canary").customEvents, app("saas-xhis-appinsight-cc-prod").customEvents;
+
+let encounterPatient = view() {
+let time_begin = datetime(2023-08-14 16:00:00);
+let time_end = datetime(2023-10-14 16:00:00);
+    customEvents
+    | where timestamp >= time_begin and timestamp < time_end
+    | extend extra = parse_json(tostring(customDimensions.extra))
+    | where extra contains "patient_name"
+    | project patientId = tostring(extra.params.patient_id), encounterId = tostring(extra.encounterId)
+    | where patientId != "" and encounterId != ""
+    | distinct patientId, encounterId
+};
+
+customEvents
+| where timestamp >= time_begin and timestamp <= time_end
+| where name contains "complete-encounter"
+| extend step = tostring(parse_json(tostring(customDimensions.extra)).step)
+| where step in ("completeEncounter end", "CompleteTreatment.CompleteEncounter") // All processes are finished
+| extend encounterId = tostring(customDimensions.encounterId)
+| extend orderCodes = parse_json(tostring(customDimensions.extra)).orderCodes
+| extend icdCodes = parse_json(tostring(customDimensions.extra)).icdCodes
+| extend drugCodes = parse_json(tostring(customDimensions.extra)).drugCodes
+| extend S = parse_json(tostring(parse_json(tostring(customDimensions.extra)).soap)).subjectiveText
+| extend O = parse_json(tostring(parse_json(tostring(customDimensions.extra)).soap)).objectiveText
+| extend A = parse_json(tostring(parse_json(tostring(customDimensions.extra)).soap)).assessmentText
+| extend P = parse_json(tostring(parse_json(tostring(customDimensions.extra)).soap)).planText
+| extend duration = parse_json(tostring(customDimensions.extra)).duration
+| extend division =  customDimensions.subjectId
+| where division != ""
+| where S != "" or O != "" or A != "" or P != ""
+| project timestamp, encounterId, doctor = user_Id, division, SOAP = pack_array(S, O, A, P)
+| join kind=inner encounterPatient on encounterId
+| summarize arg_max(timestamp, *) by encounterId, patientId
+| project-away patientId
