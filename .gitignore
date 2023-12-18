@@ -18,3 +18,4 @@ lib/
 Scripts/
 lib64
 share/
+*.csv
